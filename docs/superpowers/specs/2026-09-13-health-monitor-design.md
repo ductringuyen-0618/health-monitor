@@ -109,7 +109,7 @@ chi router. JSON in and out. No authentication.
 | DELETE | /targets/{id} | | 204, 404 |
 | GET | /healthz | | 200 `{"status":"ok","db":"up"}`, 503 when the DB ping fails |
 
-Validation: `url` required, must parse with scheme `http` or `https` and a non-empty host. `webhook_url` optional, same rule when present. Any other body shape or unknown JSON is 400.
+Validation: `url` required, must parse with scheme `http` or `https` and a non-empty host. `webhook_url` optional, same rule when present. Malformed JSON or a body that is not an object is 400. Unknown fields are ignored.
 
 Target JSON:
 
