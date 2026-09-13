@@ -128,6 +128,16 @@ func TestCreateTargetValidation(t *testing.T) {
 	}
 }
 
+func TestCreateTargetRejectsOversizedBody(t *testing.T) {
+	h := newHandler(newFake())
+	padding := strings.Repeat("a", 65<<10)
+	body := `{"url":"https://example.com","webhook_url":"` + padding + `"}`
+	res, respBody := do(t, h, "POST", "/targets", body)
+	if res.StatusCode != 400 || !strings.Contains(respBody, `"error"`) {
+		t.Errorf("status %d body %s", res.StatusCode, respBody)
+	}
+}
+
 func TestCreateTargetIgnoresUnknownFields(t *testing.T) {
 	res, body := do(t, newHandler(newFake()), "POST", "/targets", `{"url":"https://example.com","extra":1}`)
 	if res.StatusCode != 201 {

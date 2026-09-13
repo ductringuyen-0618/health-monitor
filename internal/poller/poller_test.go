@@ -88,13 +88,23 @@ func serverWith(code int) *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(code) }))
 }
 
+func TestNewDerivesBudgetFromCheckTimeout(t *testing.T) {
+	fs := newFakeStore()
+	checkTimeout := 12 * time.Second
+	p := New(fs, NewHTTPChecker(checkTimeout), &fakeDispatcher{}, 15*time.Second, 5, checkTimeout, quiet())
+	want := checkTimeout + 27*time.Second
+	if p.budget != want {
+		t.Errorf("budget = %v, want %v", p.budget, want)
+	}
+}
+
 func TestRunOnceChecksAndRecords(t *testing.T) {
 	ok := serverWith(200)
 	defer ok.Close()
 	bad := serverWith(500)
 	defer bad.Close()
 	fs := newFakeStore(store.Target{ID: "a", URL: ok.URL}, store.Target{ID: "b", URL: bad.URL})
-	p := New(fs, NewHTTPChecker(time.Second), &fakeDispatcher{}, 15*time.Second, 5, quiet())
+	p := New(fs, NewHTTPChecker(time.Second), &fakeDispatcher{}, 15*time.Second, 5, time.Second, quiet())
 	n, err := p.RunOnce(context.Background())
 	if err != nil || n != 2 {
 		t.Fatalf("n=%d err=%v", n, err)
@@ -118,7 +128,7 @@ func TestRunOnceClaimsOnlyFreeSlots(t *testing.T) {
 		due = append(due, store.Target{ID: id, URL: slow.URL})
 	}
 	fs := newFakeStore(due...)
-	p := New(fs, NewHTTPChecker(2*time.Second), &fakeDispatcher{}, 15*time.Second, 2, quiet())
+	p := New(fs, NewHTTPChecker(2*time.Second), &fakeDispatcher{}, 15*time.Second, 2, 2*time.Second, quiet())
 	n, _ := p.RunOnce(context.Background())
 	if n != 2 {
 		t.Fatalf("first claim %d, want 2", n)
@@ -143,7 +153,7 @@ func TestDispatchesOnlyOnTransitionToDown(t *testing.T) {
 	fs.transitions["y"] = []store.Transition{{From: "DOWN", To: "DOWN", ConsecutiveFailures: 3}}
 	fs.transitions["z"] = []store.Transition{{From: "UP", To: "UP", ConsecutiveFailures: 1}}
 	d := &fakeDispatcher{}
-	p := New(fs, NewHTTPChecker(time.Second), d, 15*time.Second, 5, quiet())
+	p := New(fs, NewHTTPChecker(time.Second), d, 15*time.Second, 5, time.Second, quiet())
 	if _, err := p.RunOnce(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -156,7 +166,7 @@ func TestDispatchesOnlyOnTransitionToDown(t *testing.T) {
 
 func TestPanicInCheckDoesNotStopOthers(t *testing.T) {
 	fs := newFakeStore(store.Target{ID: "p", URL: "http://x"}, store.Target{ID: "q", URL: "http://y"})
-	p := New(fs, panicChecker{}, &fakeDispatcher{}, 15*time.Second, 5, quiet())
+	p := New(fs, panicChecker{}, &fakeDispatcher{}, 15*time.Second, 5, time.Second, quiet())
 	if _, err := p.RunOnce(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -171,7 +181,7 @@ func TestDeletedTargetIsIgnored(t *testing.T) {
 	defer ok.Close()
 	fs := newFakeStore(store.Target{ID: "gone", URL: ok.URL})
 	fs.deleted["gone"] = true
-	p := New(fs, NewHTTPChecker(time.Second), &fakeDispatcher{}, 15*time.Second, 5, quiet())
+	p := New(fs, NewHTTPChecker(time.Second), &fakeDispatcher{}, 15*time.Second, 5, time.Second, quiet())
 	if _, err := p.RunOnce(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -181,7 +191,7 @@ func TestDeletedTargetIsIgnored(t *testing.T) {
 func TestRunOnceReturnsClaimError(t *testing.T) {
 	fs := newFakeStore()
 	fs.claimErr = errors.New("db down")
-	p := New(fs, NewHTTPChecker(time.Second), &fakeDispatcher{}, 15*time.Second, 5, quiet())
+	p := New(fs, NewHTTPChecker(time.Second), &fakeDispatcher{}, 15*time.Second, 5, time.Second, quiet())
 	if _, err := p.RunOnce(context.Background()); err == nil {
 		t.Fatal("expected error")
 	}
@@ -194,7 +204,7 @@ func TestRunLetsInFlightCheckFinishAfterCancel(t *testing.T) {
 	}))
 	defer slow.Close()
 	fs := newFakeStore(store.Target{ID: "a", URL: slow.URL})
-	p := New(fs, NewHTTPChecker(2*time.Second), &fakeDispatcher{}, 15*time.Second, 5, quiet())
+	p := New(fs, NewHTTPChecker(2*time.Second), &fakeDispatcher{}, 15*time.Second, 5, 2*time.Second, quiet())
 	ctx, cancel := context.WithCancel(context.Background())
 	errCh := make(chan error, 1)
 	go func() { errCh <- p.Run(ctx) }()
@@ -213,7 +223,7 @@ func TestRunStopsOnContextCancel(t *testing.T) {
 	ok := serverWith(200)
 	defer ok.Close()
 	fs := newFakeStore(store.Target{ID: "a", URL: ok.URL})
-	p := New(fs, NewHTTPChecker(time.Second), &fakeDispatcher{}, 15*time.Second, 5, quiet())
+	p := New(fs, NewHTTPChecker(time.Second), &fakeDispatcher{}, 15*time.Second, 5, time.Second, quiet())
 	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
 	defer cancel()
 	err := p.Run(ctx)

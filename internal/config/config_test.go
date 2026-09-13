@@ -64,6 +64,46 @@ func TestLoadParsesOverrides(t *testing.T) {
 	}
 }
 
+func TestLoadValidatesCheckTimeoutAgainstPollInterval(t *testing.T) {
+	cases := []struct {
+		name    string
+		env     map[string]string
+		wantErr bool
+	}{
+		{
+			name:    "timeout exceeds default interval",
+			env:     map[string]string{"DATABASE_URL": "x", "CHECK_TIMEOUT": "20s"},
+			wantErr: true,
+		},
+		{
+			name:    "zero timeout",
+			env:     map[string]string{"DATABASE_URL": "x", "CHECK_TIMEOUT": "0s"},
+			wantErr: true,
+		},
+		{
+			name:    "timeout just under explicit interval",
+			env:     map[string]string{"DATABASE_URL": "x", "CHECK_TIMEOUT": "14s", "POLL_INTERVAL": "15s"},
+			wantErr: false,
+		},
+		{
+			name:    "defaults are valid",
+			env:     map[string]string{"DATABASE_URL": "x"},
+			wantErr: false,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := Load(env(tc.env))
+			if tc.wantErr && err == nil {
+				t.Fatalf("expected error, got nil")
+			}
+			if !tc.wantErr && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
 func TestLoadRejectsBadNumbers(t *testing.T) {
 	for _, m := range []map[string]string{
 		{"DATABASE_URL": "x", "MAX_CONCURRENT_CHECKS": "0"},

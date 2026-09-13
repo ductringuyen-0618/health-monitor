@@ -78,6 +78,8 @@ func runAPI(ctx context.Context, cfg config.Config, st *store.Store, log *slog.L
 		Addr:              ":" + cfg.Port,
 		Handler:           api.NewRouter(st, log),
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       15 * time.Second,
+		WriteTimeout:      15 * time.Second,
 	}
 	errCh := make(chan error, 1)
 	go func() { errCh <- srv.ListenAndServe() }()
@@ -103,6 +105,7 @@ func runWorker(ctx context.Context, cfg config.Config, st *store.Store, log *slo
 		alert.New(cfg.DefaultWebhookURL, 5*time.Second, log),
 		cfg.PollInterval,
 		cfg.MaxConcurrentChecks,
+		cfg.CheckTimeout,
 		log,
 	)
 	log.Info("worker started", "interval", cfg.PollInterval, "max_concurrent", cfg.MaxConcurrentChecks)

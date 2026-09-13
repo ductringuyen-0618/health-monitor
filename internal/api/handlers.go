@@ -31,9 +31,19 @@ func (h *handlers) healthz(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "db": "up"})
 }
 
+// maxCreateBody bounds the request body accepted by create so an oversized
+// or unbounded payload cannot tie up memory or a connection indefinitely.
+const maxCreateBody = 64 << 10
+
 func (h *handlers) create(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxCreateBody)
 	var in createRequest
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		var maxErr *http.MaxBytesError
+		if errors.As(err, &maxErr) {
+			writeError(w, http.StatusBadRequest, "body must not exceed 64KB")
+			return
+		}
 		writeError(w, http.StatusBadRequest, "body must be a JSON object")
 		return
 	}

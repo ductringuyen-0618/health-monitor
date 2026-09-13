@@ -30,10 +30,10 @@ const (
 	fullSleep  = 100 * time.Millisecond
 	minBackoff = time.Second
 	maxBackoff = 30 * time.Second
-	// inFlightBudget bounds a check goroutine after Run's context is
-	// cancelled: it covers the checker timeout plus webhook retries plus the
-	// DB write, so an in-flight check can finish instead of being aborted.
-	inFlightBudget = 30 * time.Second
+	// webhookWorstCase bounds the alert dispatcher's worst-case delivery
+	// time: 4 attempts (1 initial + 3 retries) x 5s dispatch timeout each,
+	// plus the 1s + 2s + 4s backoff between them (4*5 + 1 + 2 + 4 = 27s).
+	webhookWorstCase = 27 * time.Second
 )
 
 type Poller struct {
@@ -41,14 +41,19 @@ type Poller struct {
 	checker  Checker
 	dispatch Dispatcher
 	interval time.Duration
-	sem      chan struct{}
-	wg       sync.WaitGroup
-	log      *slog.Logger
+	// budget bounds a check goroutine after Run's context is cancelled: it
+	// covers the checker timeout plus webhook retries plus the DB write, so
+	// an in-flight check can finish instead of being aborted.
+	budget time.Duration
+	sem    chan struct{}
+	wg     sync.WaitGroup
+	log    *slog.Logger
 }
 
-func New(s Store, c Checker, d Dispatcher, interval time.Duration, maxConcurrent int, log *slog.Logger) *Poller {
+func New(s Store, c Checker, d Dispatcher, interval time.Duration, maxConcurrent int, checkTimeout time.Duration, log *slog.Logger) *Poller {
 	return &Poller{store: s, checker: c, dispatch: d, interval: interval,
-		sem: make(chan struct{}, maxConcurrent), log: log}
+		budget: checkTimeout + webhookWorstCase,
+		sem:    make(chan struct{}, maxConcurrent), log: log}
 }
 
 // Run drains due targets until ctx is cancelled, then waits for in-flight
@@ -98,7 +103,7 @@ func (p *Poller) RunOnce(ctx context.Context) (int, error) {
 		go func(t store.Target) {
 			defer p.wg.Done()
 			defer func() { <-p.sem }()
-			hctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), inFlightBudget)
+			hctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), p.budget)
 			defer cancel()
 			p.handle(hctx, t)
 		}(t)

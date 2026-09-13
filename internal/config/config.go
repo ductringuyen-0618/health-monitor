@@ -48,6 +48,9 @@ func Load(getenv func(string) string) (Config, error) {
 	if cfg.CheckTimeout, err = duration(getenv("CHECK_TIMEOUT"), cfg.CheckTimeout); err != nil {
 		return cfg, fmt.Errorf("CHECK_TIMEOUT: %w", err)
 	}
+	if cfg.CheckTimeout <= 0 || cfg.CheckTimeout >= cfg.PollInterval {
+		return cfg, fmt.Errorf("CHECK_TIMEOUT (%s) must be positive and less than POLL_INTERVAL (%s)", cfg.CheckTimeout, cfg.PollInterval)
+	}
 	if v := getenv("MAX_CONCURRENT_CHECKS"); v != "" {
 		n, err := strconv.Atoi(v)
 		if err != nil || n < 1 {

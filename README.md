@@ -54,3 +54,8 @@ Capacity: `effective_interval ≈ due_targets × avg_check_latency ÷ (workers �
 
     doctl apps create --spec deployments/app-platform.yaml
     doctl apps list
+
+## Known limitations
+
+- **No authentication.** Anyone who can reach the API can register a target, so the worker can be pointed at private addresses (RFC1918, link-local, localhost) and the resulting status code is readable through `GET /targets`. Deploy it behind a trusted edge, or add an allowlist, before exposing it to untrusted callers. Out of scope for this build by design.
+- **A dead webhook receiver slows checking.** Webhook delivery runs inside the check goroutine and holds its concurrency slot through all retries, so an unreachable receiver can occupy a slot for up to 27 seconds. With `MAX_CONCURRENT_CHECKS` slots all held this way, checking stalls until the retries finish. Raising `MAX_CONCURRENT_CHECKS` or adding more workers mitigates it; moving delivery to its own queue is the real fix.
