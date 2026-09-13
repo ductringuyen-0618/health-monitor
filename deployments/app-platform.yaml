@@ -1,0 +1,41 @@
+name: health-monitor
+region: nyc
+services:
+  - name: api
+    github:
+      repo: ductringuyen-0618/health-monitor
+      branch: main
+      deploy_on_push: true
+    dockerfile_path: Dockerfile
+    http_port: 8080
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-0.5gb
+    health_check:
+      http_path: /healthz
+      initial_delay_seconds: 10
+    envs:
+      - key: MODE
+        value: api
+      - key: DATABASE_URL
+        value: ${db.DATABASE_URL}
+workers:
+  - name: poller
+    github:
+      repo: ductringuyen-0618/health-monitor
+      branch: main
+      deploy_on_push: true
+    dockerfile_path: Dockerfile
+    instance_count: 1
+    instance_size_slug: apps-s-1vcpu-0.5gb
+    envs:
+      - key: MODE
+        value: worker
+      - key: DATABASE_URL
+        value: ${db.DATABASE_URL}
+      - key: POLL_INTERVAL
+        value: 15s
+databases:
+  - name: db
+    engine: PG
+    version: "16"
+    production: false

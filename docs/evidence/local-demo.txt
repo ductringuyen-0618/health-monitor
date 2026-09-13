@@ -1,0 +1,21 @@
+== healthz
+{"db":"up","status":"ok"}
+
+== register healthy target
+== register failing target
+healthy=4b0ecf75-96a1-4588-8635-4c496f0236c7 failing=cead0a18-1165-4cad-bcb4-0857f2c6d3c1
+t+3s failing target status: PENDING
+t+6s failing target status: PENDING
+t+9s failing target status: PENDING
+t+12s failing target status: PENDING
+t+15s failing target status: PENDING
+t+18s failing target status: DOWN
+== failing target
+{"id":"cead0a18-1165-4cad-bcb4-0857f2c6d3c1","url":"http://localhost:9090/bad?d=1789327456","webhook_url":"http://localhost:9090/hook","status":"DOWN","consecutive_failures":2,"last_checked_at":"2026-09-13T12:24:31.84049-07:00","last_status_code":500,"last_error":"unexpected status 500","next_check_at":"2026-09-13T12:24:46.837972-07:00","created_at":"2026-09-13T12:24:16.625802-07:00"}
+
+== healthy target
+{"id":"4b0ecf75-96a1-4588-8635-4c496f0236c7","url":"http://localhost:9090/ok?d=1789327456","webhook_url":"http://localhost:9090/hook","status":"UP","consecutive_failures":0,"last_checked_at":"2026-09-13T12:24:31.846887-07:00","last_status_code":200,"last_error":null,"next_check_at":"2026-09-13T12:24:46.837972-07:00","created_at":"2026-09-13T12:24:16.558891-07:00"}
+
+== webhooks received by sink
+[{"event":"target.down","target_id":"cead0a18-1165-4cad-bcb4-0857f2c6d3c1","url":"http://localhost:9090/bad?d=1789327456","status":"DOWN","consecutive_failures":2,"last_status_code":500,"last_error":"unexpected status 500","occurred_at":"2026-09-13T19:24:31.8413527Z"}]
+
