@@ -1,0 +1,91 @@
+== two-worker evidence (Task 10 Step 5)
+NOT PROVEN WITH TWO INSTANCES: setting the poller to instance_count: 2 was rejected by App
+Platform with "must not exceed 1 instance for instance_size_slug apps-s-1vcpu-0.5gb", so the
+spec was reverted to instance_count: 1 and only ONE poller instance ran. Exactly one log stream
+(prefix "poller") appears below and there is no second instance emitting "claimed" lines.
+Single-instance result: across 14 consecutive 15s windows the failing target
+6654977f-5ae4-4335-8286-4891445ce843 was checked exactly once per window (max 1), computed with
+the Python command recorded at the bottom of this file, not by eye.
+
+$ doctl apps update "$APP_ID" --spec deployments/app-platform.yaml   # with poller instance_count: 2
+Error: PUT https://api.digitalocean.com/v2/apps/d2017e54-d876-42bd-81c8-63c2a29c0c3a: 400 (request "fb33cacd-0591-4e6d-bc85-bd8820b9eb79") error validating app spec field "workers.instance_count": must not exceed 1 instance for instance_size_slug apps-s-1vcpu-0.5gb
+
+$ doctl apps update "$APP_ID" --spec deployments/app-platform.yaml   # reverted to instance_count: 1
+Notice: App updated
+ID                                      Default Ingress
+d2017e54-d876-42bd-81c8-63c2a29c0c3a    https://health-monitor-gyx32.ondigitalocean.app
+
+$ doctl apps logs "$APP_ID" poller --type run --tail 300
+poller 2026-09-13T19:34:36.852056839Z {"time":"2026-09-13T19:34:36.851575052Z","level":"INFO","msg":"starting","mode":"worker"}
+poller 2026-09-13T19:34:36.852140153Z {"time":"2026-09-13T19:34:36.851950664Z","level":"INFO","msg":"worker started","interval":15000000000,"max_concurrent":20}
+poller 2026-09-13T19:57:34.011596605Z {"time":"2026-09-13T19:57:34.011310318Z","level":"INFO","msg":"claimed","count":2,"backlog":0,"in_flight":2}
+poller 2026-09-13T19:57:34.098962619Z {"time":"2026-09-13T19:57:34.095665994Z","level":"INFO","msg":"checked","target":"3b12af9f-62dc-4096-8232-45f466b5d3ec","url":"https://httpbin.org/status/200?d=1789329461","ok":true,"status":"UP","failures":0}
+poller 2026-09-13T19:57:34.145854948Z {"time":"2026-09-13T19:57:34.145686757Z","level":"INFO","msg":"checked","target":"6654977f-5ae4-4335-8286-4891445ce843","url":"https://httpbin.org/status/500?d=1789329461","ok":false,"status":"PENDING","failures":1}
+poller 2026-09-13T19:57:49.081573487Z {"time":"2026-09-13T19:57:49.081041377Z","level":"INFO","msg":"claimed","count":2,"backlog":0,"in_flight":2}
+poller 2026-09-13T19:57:49.090251816Z {"time":"2026-09-13T19:57:49.090084007Z","level":"INFO","msg":"checked","target":"3b12af9f-62dc-4096-8232-45f466b5d3ec","url":"https://httpbin.org/status/200?d=1789329461","ok":true,"status":"UP","failures":0}
+poller 2026-09-13T19:57:49.095267288Z {"time":"2026-09-13T19:57:49.093937697Z","level":"INFO","msg":"checked","target":"6654977f-5ae4-4335-8286-4891445ce843","url":"https://httpbin.org/status/500?d=1789329461","ok":false,"status":"DOWN","failures":2}
+poller 2026-09-13T19:57:49.406436136Z {"time":"2026-09-13T19:57:49.406297071Z","level":"INFO","msg":"webhook delivered","target":"6654977f-5ae4-4335-8286-4891445ce843","attempt":1}
+poller 2026-09-13T19:58:04.151908688Z {"time":"2026-09-13T19:58:04.151719543Z","level":"INFO","msg":"claimed","count":2,"backlog":0,"in_flight":2}
+poller 2026-09-13T19:58:04.159133235Z {"time":"2026-09-13T19:58:04.158845681Z","level":"INFO","msg":"checked","target":"6654977f-5ae4-4335-8286-4891445ce843","url":"https://httpbin.org/status/500?d=1789329461","ok":false,"status":"DOWN","failures":3}
+poller 2026-09-13T19:58:04.160585720Z {"time":"2026-09-13T19:58:04.160431888Z","level":"INFO","msg":"checked","target":"3b12af9f-62dc-4096-8232-45f466b5d3ec","url":"https://httpbin.org/status/200?d=1789329461","ok":true,"status":"UP","failures":0}
+poller 2026-09-13T19:58:19.208460768Z {"time":"2026-09-13T19:58:19.208279003Z","level":"INFO","msg":"claimed","count":2,"backlog":0,"in_flight":2}
+poller 2026-09-13T19:58:19.217246731Z {"time":"2026-09-13T19:58:19.216964811Z","level":"INFO","msg":"checked","target":"6654977f-5ae4-4335-8286-4891445ce843","url":"https://httpbin.org/status/500?d=1789329461","ok":false,"status":"DOWN","failures":4}
+poller 2026-09-13T19:58:19.219499299Z {"time":"2026-09-13T19:58:19.219376745Z","level":"INFO","msg":"checked","target":"3b12af9f-62dc-4096-8232-45f466b5d3ec","url":"https://httpbin.org/status/200?d=1789329461","ok":true,"status":"UP","failures":0}
+poller 2026-09-13T19:58:34.282393708Z {"time":"2026-09-13T19:58:34.282230124Z","level":"INFO","msg":"claimed","count":2,"backlog":0,"in_flight":2}
+poller 2026-09-13T19:58:34.291976479Z {"time":"2026-09-13T19:58:34.291814736Z","level":"INFO","msg":"checked","target":"6654977f-5ae4-4335-8286-4891445ce843","url":"https://httpbin.org/status/500?d=1789329461","ok":false,"status":"DOWN","failures":5}
+poller 2026-09-13T19:58:34.293525481Z {"time":"2026-09-13T19:58:34.293384395Z","level":"INFO","msg":"checked","target":"3b12af9f-62dc-4096-8232-45f466b5d3ec","url":"https://httpbin.org/status/200?d=1789329461","ok":true,"status":"UP","failures":0}
+poller 2026-09-13T19:58:49.352450921Z {"time":"2026-09-13T19:58:49.352278083Z","level":"INFO","msg":"claimed","count":2,"backlog":0,"in_flight":2}
+poller 2026-09-13T19:58:49.360890081Z {"time":"2026-09-13T19:58:49.360695952Z","level":"INFO","msg":"checked","target":"3b12af9f-62dc-4096-8232-45f466b5d3ec","url":"https://httpbin.org/status/200?d=1789329461","ok":true,"status":"UP","failures":0}
+poller 2026-09-13T19:58:49.367162706Z {"time":"2026-09-13T19:58:49.366992733Z","level":"INFO","msg":"checked","target":"6654977f-5ae4-4335-8286-4891445ce843","url":"https://httpbin.org/status/500?d=1789329461","ok":false,"status":"DOWN","failures":6}
+poller 2026-09-13T19:59:04.415071833Z {"time":"2026-09-13T19:59:04.4147123Z","level":"INFO","msg":"claimed","count":2,"backlog":0,"in_flight":2}
+poller 2026-09-13T19:59:04.424758484Z {"time":"2026-09-13T19:59:04.424399988Z","level":"INFO","msg":"checked","target":"6654977f-5ae4-4335-8286-4891445ce843","url":"https://httpbin.org/status/500?d=1789329461","ok":false,"status":"DOWN","failures":7}
+poller 2026-09-13T19:59:04.430387672Z {"time":"2026-09-13T19:59:04.430154391Z","level":"INFO","msg":"checked","target":"3b12af9f-62dc-4096-8232-45f466b5d3ec","url":"https://httpbin.org/status/200?d=1789329461","ok":true,"status":"UP","failures":0}
+poller 2026-09-13T19:59:19.487975681Z {"time":"2026-09-13T19:59:19.487762334Z","level":"INFO","msg":"claimed","count":2,"backlog":0,"in_flight":2}
+poller 2026-09-13T19:59:19.496352444Z {"time":"2026-09-13T19:59:19.496187643Z","level":"INFO","msg":"checked","target":"3b12af9f-62dc-4096-8232-45f466b5d3ec","url":"https://httpbin.org/status/200?d=1789329461","ok":true,"status":"UP","failures":0}
+poller 2026-09-13T19:59:19.498385648Z {"time":"2026-09-13T19:59:19.498258424Z","level":"INFO","msg":"checked","target":"6654977f-5ae4-4335-8286-4891445ce843","url":"https://httpbin.org/status/500?d=1789329461","ok":false,"status":"DOWN","failures":8}
+poller 2026-09-13T19:59:34.554895312Z {"time":"2026-09-13T19:59:34.554655589Z","level":"INFO","msg":"claimed","count":2,"backlog":0,"in_flight":2}
+poller 2026-09-13T19:59:34.563878540Z {"time":"2026-09-13T19:59:34.56366398Z","level":"INFO","msg":"checked","target":"6654977f-5ae4-4335-8286-4891445ce843","url":"https://httpbin.org/status/500?d=1789329461","ok":false,"status":"DOWN","failures":9}
+poller 2026-09-13T19:59:34.565361622Z {"time":"2026-09-13T19:59:34.5651781Z","level":"INFO","msg":"checked","target":"3b12af9f-62dc-4096-8232-45f466b5d3ec","url":"https://httpbin.org/status/200?d=1789329461","ok":true,"status":"UP","failures":0}
+poller 2026-09-13T19:59:49.630656306Z {"time":"2026-09-13T19:59:49.630509964Z","level":"INFO","msg":"claimed","count":2,"backlog":0,"in_flight":2}
+poller 2026-09-13T19:59:49.640476638Z {"time":"2026-09-13T19:59:49.640307893Z","level":"INFO","msg":"checked","target":"6654977f-5ae4-4335-8286-4891445ce843","url":"https://httpbin.org/status/500?d=1789329461","ok":false,"status":"DOWN","failures":10}
+poller 2026-09-13T19:59:49.647975707Z {"time":"2026-09-13T19:59:49.645456136Z","level":"INFO","msg":"checked","target":"3b12af9f-62dc-4096-8232-45f466b5d3ec","url":"https://httpbin.org/status/200?d=1789329461","ok":true,"status":"UP","failures":0}
+poller 2026-09-13T20:00:04.699122213Z {"time":"2026-09-13T20:00:04.698833411Z","level":"INFO","msg":"claimed","count":2,"backlog":0,"in_flight":2}
+poller 2026-09-13T20:00:04.707830622Z {"time":"2026-09-13T20:00:04.707542261Z","level":"INFO","msg":"checked","target":"6654977f-5ae4-4335-8286-4891445ce843","url":"https://httpbin.org/status/500?d=1789329461","ok":false,"status":"DOWN","failures":11}
+poller 2026-09-13T20:00:04.709447469Z {"time":"2026-09-13T20:00:04.70932678Z","level":"INFO","msg":"checked","target":"3b12af9f-62dc-4096-8232-45f466b5d3ec","url":"https://httpbin.org/status/200?d=1789329461","ok":true,"status":"UP","failures":0}
+poller 2026-09-13T20:00:19.775244805Z {"time":"2026-09-13T20:00:19.7750421Z","level":"INFO","msg":"claimed","count":2,"backlog":0,"in_flight":2}
+poller 2026-09-13T20:00:19.787991452Z {"time":"2026-09-13T20:00:19.785234155Z","level":"INFO","msg":"checked","target":"6654977f-5ae4-4335-8286-4891445ce843","url":"https://httpbin.org/status/500?d=1789329461","ok":false,"status":"DOWN","failures":12}
+poller 2026-09-13T20:00:19.788025642Z {"time":"2026-09-13T20:00:19.786851411Z","level":"INFO","msg":"checked","target":"3b12af9f-62dc-4096-8232-45f466b5d3ec","url":"https://httpbin.org/status/200?d=1789329461","ok":true,"status":"UP","failures":0}
+poller 2026-09-13T20:00:34.843613183Z {"time":"2026-09-13T20:00:34.843234632Z","level":"INFO","msg":"claimed","count":2,"backlog":0,"in_flight":2}
+poller 2026-09-13T20:00:34.853591391Z {"time":"2026-09-13T20:00:34.8533881Z","level":"INFO","msg":"checked","target":"6654977f-5ae4-4335-8286-4891445ce843","url":"https://httpbin.org/status/500?d=1789329461","ok":false,"status":"DOWN","failures":13}
+poller 2026-09-13T20:00:34.855202378Z {"time":"2026-09-13T20:00:34.855070747Z","level":"INFO","msg":"checked","target":"3b12af9f-62dc-4096-8232-45f466b5d3ec","url":"https://httpbin.org/status/200?d=1789329461","ok":true,"status":"UP","failures":0}
+poller 2026-09-13T20:00:49.920234324Z {"time":"2026-09-13T20:00:49.920069394Z","level":"INFO","msg":"claimed","count":2,"backlog":0,"in_flight":2}
+poller 2026-09-13T20:00:49.934436923Z {"time":"2026-09-13T20:00:49.934236242Z","level":"INFO","msg":"checked","target":"3b12af9f-62dc-4096-8232-45f466b5d3ec","url":"https://httpbin.org/status/200?d=1789329461","ok":true,"status":"UP","failures":0}
+poller 2026-09-13T20:00:49.940425398Z {"time":"2026-09-13T20:00:49.940255857Z","level":"INFO","msg":"checked","target":"6654977f-5ae4-4335-8286-4891445ce843","url":"https://httpbin.org/status/500?d=1789329461","ok":false,"status":"DOWN","failures":14}
+
+== per-window check count (computed, not eyeballed)
+
+$ cat pollerlogs.txt | python -c "
+import sys,json,collections,datetime
+BAD='6654977f-5ae4-4335-8286-4891445ce843'
+win=collections.Counter(); claimed=0; prefixes=set()
+for ln in sys.stdin:
+    i=ln.find('{')
+    if i<0: continue
+    prefixes.add(ln[:i].split()[0] if ln[:i].split() else '')
+    try: r=json.loads(ln[i:])
+    except Exception: continue
+    if r.get('msg')=='claimed': claimed+=1
+    if r.get('msg')=='checked' and r.get('target')==BAD:
+        t=datetime.datetime.fromisoformat(r['time'].replace('Z','+00:00'))
+        win[int(t.timestamp())//15]+=1
+print('log line prefixes seen:',sorted(prefixes))
+print('claimed lines:',claimed)
+print('windows with a check for the failing target:',len(win))
+print('checks per 15s window:',sorted(win.values()))
+print('max checks in any window:',max(win.values()) if win else 0)
+"
+log line prefixes seen: ['poller']
+claimed lines: 14
+windows with a check for the failing target: 14
+checks per 15s window: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+max checks in any window: 1

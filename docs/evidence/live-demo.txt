@@ -1,0 +1,24 @@
+== healthz
+{"db":"up","status":"ok"}
+
+== register healthy target
+== register failing target
+healthy=3b12af9f-62dc-4096-8232-45f466b5d3ec failing=6654977f-5ae4-4335-8286-4891445ce843
+t+3s failing target status: PENDING
+t+6s failing target status: PENDING
+t+9s failing target status: PENDING
+t+12s failing target status: PENDING
+t+15s failing target status: PENDING
+t+18s failing target status: DOWN
+== failing target
+{"id":"6654977f-5ae4-4335-8286-4891445ce843","url":"https://httpbin.org/status/500?d=1789329461","webhook_url":"https://webhook.site/4482b174-f3c0-4002-9078-b11171cfaeb8","status":"DOWN","consecutive_failures":2,"last_checked_at":"2026-09-13T19:57:49.094484Z","last_status_code":500,"last_error":"unexpected status 500","next_check_at":"2026-09-13T19:58:04.081391Z","created_at":"2026-09-13T19:57:33.159721Z"}
+
+== healthy target
+{"id":"3b12af9f-62dc-4096-8232-45f466b5d3ec","url":"https://httpbin.org/status/200?d=1789329461","webhook_url":"https://webhook.site/4482b174-f3c0-4002-9078-b11171cfaeb8","status":"UP","consecutive_failures":0,"last_checked_at":"2026-09-13T19:57:49.091785Z","last_status_code":200,"last_error":null,"next_check_at":"2026-09-13T19:58:04.081391Z","created_at":"2026-09-13T19:57:33.005917Z"}
+
+check https://webhook.site/4482b174-f3c0-4002-9078-b11171cfaeb8 for the target.down payload
+
+== webhook payload received by webhook.site
+
+$ curl -s "https://webhook.site/token/$TOKEN/requests?sorting=newest" | python -c "import sys,json; d=json.load(sys.stdin); print(d['data'][0]['content'])"
+{"event":"target.down","target_id":"6654977f-5ae4-4335-8286-4891445ce843","url":"https://httpbin.org/status/500?d=1789329461","status":"DOWN","consecutive_failures":2,"last_status_code":500,"last_error":"unexpected status 500","occurred_at":"2026-09-13T19:57:49.093984922Z"}
