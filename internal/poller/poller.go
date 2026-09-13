@@ -30,6 +30,10 @@ const (
 	fullSleep  = 100 * time.Millisecond
 	minBackoff = time.Second
 	maxBackoff = 30 * time.Second
+	// inFlightBudget bounds a check goroutine after Run's context is
+	// cancelled: it covers the checker timeout plus webhook retries plus the
+	// DB write, so an in-flight check can finish instead of being aborted.
+	inFlightBudget = 30 * time.Second
 )
 
 type Poller struct {
@@ -94,7 +98,9 @@ func (p *Poller) RunOnce(ctx context.Context) (int, error) {
 		go func(t store.Target) {
 			defer p.wg.Done()
 			defer func() { <-p.sem }()
-			p.handle(ctx, t)
+			hctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), inFlightBudget)
+			defer cancel()
+			p.handle(hctx, t)
 		}(t)
 	}
 	if len(targets) > 0 {

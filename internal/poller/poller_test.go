@@ -48,7 +48,10 @@ func (f *fakeStore) CountDue(context.Context) (int, error) {
 	return len(f.due), nil
 }
 
-func (f *fakeStore) RecordCheck(_ context.Context, id string, r store.CheckResult) (store.Transition, error) {
+func (f *fakeStore) RecordCheck(ctx context.Context, id string, r store.CheckResult) (store.Transition, error) {
+	if ctx.Err() != nil {
+		return store.Transition{}, ctx.Err()
+	}
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	if f.deleted[id] {
@@ -181,6 +184,28 @@ func TestRunOnceReturnsClaimError(t *testing.T) {
 	p := New(fs, NewHTTPChecker(time.Second), &fakeDispatcher{}, 15*time.Second, 5, quiet())
 	if _, err := p.RunOnce(context.Background()); err == nil {
 		t.Fatal("expected error")
+	}
+}
+
+func TestRunLetsInFlightCheckFinishAfterCancel(t *testing.T) {
+	slow := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(200 * time.Millisecond)
+		w.WriteHeader(200)
+	}))
+	defer slow.Close()
+	fs := newFakeStore(store.Target{ID: "a", URL: slow.URL})
+	p := New(fs, NewHTTPChecker(2*time.Second), &fakeDispatcher{}, 15*time.Second, 5, quiet())
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	go func() { errCh <- p.Run(ctx) }()
+	time.Sleep(50 * time.Millisecond)
+	cancel()
+	err := <-errCh
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("Run returned %v, want context.Canceled", err)
+	}
+	if r := fs.recorded["a"]; len(r) != 1 || !r[0].OK {
+		t.Errorf("expected the in-flight check to finish and record OK once, got %+v", r)
 	}
 }
 
