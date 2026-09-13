@@ -32,3 +32,32 @@ $ curl -s "$LIVE/healthz"
 $ doctl apps get "$APP_ID"
 ID                                      Spec Name         Default Ingress                                    Active Deployment ID                    In Progress Deployment ID    Created At                       Updated At
 d2017e54-d876-42bd-81c8-63c2a29c0c3a    health-monitor    https://health-monitor-gyx32.ondigitalocean.app    b5cc59a6-797b-4f68-bb54-eb285c6d1cff                                 2026-09-13 19:29:10 +0000 UTC    2026-09-13 19:34:54 +0000 UTC
+
+== Task 10 Step 6: push triggers a new deployment (deploy_on_push)
+
+$ git push
+To https://github.com/ductringuyen-0618/health-monitor.git
+   d664d19..3e4ca9d  main -> main
+
+$ doctl apps list-deployments "$APP_ID" --format Phase --no-header   # polled every 20s
+20:02:08 BUILDING
+20:02:29 BUILDING
+20:02:49 BUILDING
+20:03:10 BUILDING
+20:03:30 DEPLOYING
+20:03:51 DEPLOYING
+20:04:12 ACTIVE
+
+$ doctl apps list-deployments "$APP_ID" --format ID,Phase,Progress
+ID                                      Phase         Progress
+6a1bd87b-25c7-4614-8efe-a56a26bcb8f0    ACTIVE        10/10
+0ef82112-32ec-44d1-bd8e-810ad8c52386    SUPERSEDED    10/10
+b5cc59a6-797b-4f68-bb54-eb285c6d1cff    SUPERSEDED    10/10
+
+$ curl -s "$LIVE/healthz"
+{"db":"up","status":"ok"}
+
+
+$ curl -s "$LIVE/targets"   # demo targets left in place for review
+[{"id":"3b12af9f-62dc-4096-8232-45f466b5d3ec","url":"https://httpbin.org/status/200?d=1789329461","webhook_url":"https://webhook.site/4482b174-f3c0-4002-9078-b11171cfaeb8","status":"UP","consecutive_failures":0,"last_checked_at":"2026-09-13T20:04:21.057893Z","last_status_code":200,"last_error":null,"next_check_at":"2026-09-13T20:04:36.018913Z","created_at":"2026-09-13T19:57:33.005917Z"},{"id":"6654977f-5ae4-4335-8286-4891445ce843","url":"https://httpbin.org/status/500?d=1789329461","webhook_url":"https://webhook.site/4482b174-f3c0-4002-9078-b11171cfaeb8","status":"DOWN","consecutive_failures":28,"last_checked_at":"2026-09-13T20:04:21.028487Z","last_status_code":500,"last_error":"unexpected status 500","next_check_at":"2026-09-13T20:04:36.018913Z","created_at":"2026-09-13T19:57:33.159721Z"}]
+
