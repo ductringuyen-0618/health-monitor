@@ -1,1 +1,6 @@
 .superpowers/
+/monitor
+/monitor.exe
+/bin/
+/tmp/
+.env
