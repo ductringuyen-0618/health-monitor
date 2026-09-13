@@ -1,7 +1,7 @@
 # Health Monitor: design
 
 Date: 2026-09-13
-Status: approved in brainstorming, awaiting spec review
+Status: approved; implementation plan at docs/superpowers/plans/2026-09-13-health-monitor.md
 
 ## Goal
 
@@ -39,7 +39,7 @@ migrations/0001_init.sql
 deployments/app-platform.yaml
 Dockerfile
 docker-compose.yml
-Makefile
+scripts/db-up.sh, test.sh, run-api.sh, run-worker.sh
 scripts/demo.sh
 ```
 
@@ -184,7 +184,7 @@ Any 2xx is delivered. Otherwise retry after 1s, 2s, 4s. After the third retry, l
 - Dockerfile: two-stage, `golang:1.27` builder to `gcr.io/distroless/static`, static binary, non-root, one image for both modes.
 - `deployments/app-platform.yaml`: service `api` with HTTP health check on `/healthz`; worker `poller` with `MODE=worker`; database `db` (dev Postgres). Both components from the same GitHub repo and Dockerfile, `instance_count: 1`. Scaling the worker is an `instance_count` change only.
 - `docker-compose.yml`: Postgres on host port 5433 to avoid the existing stack on 5432.
-- `Makefile`: `run-api`, `run-worker`, `test`, `lint` (`go vet`, `gofmt -l`).
+- `scripts/`: `db-up.sh`, `test.sh` (gofmt, go vet, go test), `run-api.sh`, `run-worker.sh`. No Makefile: `make` is not installed on the development machine.
 - `scripts/demo.sh`: takes a base URL, registers a healthy target, a target that returns 500, and a webhook receiver URL, then polls GET until the failing target reports DOWN. Used both locally and against the live deployment during review.
 
 ## Error handling
@@ -199,7 +199,7 @@ Any 2xx is delivered. Otherwise retry after 1s, 2s, 4s. After the third retry, l
 
 Tests are written before the code they cover.
 
-- `store`: integration tests against real Postgres via testcontainers. Create and duplicate, get, delete and not-found, claim exclusivity with two concurrent claimers over the same due rows, and the 0 to 1 to 2 failure sequence producing PENDING, PENDING, DOWN then UP after one success.
+- `store`: integration tests against the compose Postgres, reached through `TEST_DATABASE_URL` and skipped when it is unset. Create and duplicate, get, delete and not-found, claim exclusivity with two concurrent claimers over the same due rows, and the 0 to 1 to 2 failure sequence producing PENDING, PENDING, DOWN then UP after one success.
 - `poller`: unit tests with `httptest.Server` for 200, 500, timeout, and a panicking check; a fake store asserting the dispatcher is called exactly once on the transition and not on later failing checks.
 - `alert`: unit tests with `httptest.Server` for first-try delivery, 500 then success, and give up after the third retry.
 - `api`: handler tests with a fake store for every response code in the API table, including URL validation cases.
