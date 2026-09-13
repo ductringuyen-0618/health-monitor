@@ -13,8 +13,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ductringuyen-0618/health-monitor/internal/alert"
 	"github.com/ductringuyen-0618/health-monitor/internal/api"
 	"github.com/ductringuyen-0618/health-monitor/internal/config"
+	"github.com/ductringuyen-0618/health-monitor/internal/poller"
 	"github.com/ductringuyen-0618/health-monitor/internal/store"
 )
 
@@ -95,5 +97,19 @@ func runAPI(ctx context.Context, cfg config.Config, st *store.Store, log *slog.L
 }
 
 func runWorker(ctx context.Context, cfg config.Config, st *store.Store, log *slog.Logger) error {
-	return fmt.Errorf("worker mode not implemented yet")
+	p := poller.New(
+		st,
+		poller.NewHTTPChecker(cfg.CheckTimeout),
+		alert.New(cfg.DefaultWebhookURL, 5*time.Second, log),
+		cfg.PollInterval,
+		cfg.MaxConcurrentChecks,
+		log,
+	)
+	log.Info("worker started", "interval", cfg.PollInterval, "max_concurrent", cfg.MaxConcurrentChecks)
+	err := p.Run(ctx)
+	log.Info("worker stopped")
+	if errors.Is(err, context.Canceled) {
+		return nil
+	}
+	return err
 }
